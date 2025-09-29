@@ -81,8 +81,8 @@ class piper_radio_module:
         return self._get_cached_data(cache_key)
 
     # Otherwise, read from the actual sensor
-    if peer > 10 or peer < 1:
-      raise ValueError("Peer number must be between 1 and 10")
+    if peer > 10 or peer < 0:
+      raise ValueError("Peer number must be between 0 and 10")
 
     bytes_read = bytearray(RADIO_MODULES[module_type][1])
     with self.radio:
@@ -159,8 +159,8 @@ class piper_radio_module:
   def read_gpio(self, peer, gpio_pin):
     if gpio_pin < 11 or gpio_pin > 17:
       raise ValueError("GPIO Pin must be between 11 and 17")
-    if peer > 10 or peer < 1:
-      raise ValueError("Peer number must be between 1 and 10")
+    if peer > 10 or peer < 0:
+      raise ValueError("Peer number must be between 0 and 10")
 
     # Create cache key for GPIO reading
     cache_key = f"gpio_{peer}_{gpio_pin}"
@@ -196,8 +196,8 @@ class piper_radio_module:
   def write_gpio(self, peer, gpio_pin, value):
     if gpio_pin < 11 or gpio_pin > 17:
       raise ValueError("GPIO Pin must be between 11 and 17")
-    if peer > 10 or peer < 1:
-      raise ValueError("Peer number must be between 1 and 10")
+    if peer > 10 or peer < 0:
+      raise ValueError("Peer number must be between 0 and 10")
     value = min(255, max(0, value))
     with self.radio:
       self.radio.write(bytes([(gpio_pin + 79), peer, value, 0])) # Register for writing GPIO 11 is 90
@@ -205,8 +205,8 @@ class piper_radio_module:
 
   def write_motor_module(self, peer, gpio_pin, value):
     reg_addr = 57
-    if peer > 10 or peer < 1:
-      raise ValueError("Peer number must be between 1 and 10")
+    if peer > 10 or peer < 0:
+      raise ValueError("Peer number must be between 0 and 10")
 
     if gpio_pin == 'S1':
         reg_addr = 59
@@ -248,8 +248,8 @@ class piper_radio_module:
 
   # Set the address for a peer radio module
   def set_peer_address(self, peer, address):
-    if peer > 10 or peer < 1:
-      raise ValueError("Peer number must be between 1 and 10")
+    if peer > 10 or peer < 0:
+      raise ValueError("Peer number must be between 0 and 10")
     _addr = bytes(address)
     with self.radio:
       self.radio.write(bytes([peer * 3, 0]) + _addr)
@@ -264,14 +264,14 @@ class piper_radio_module:
 
   # Get MAC address from a peer number using local storage
   def get_mac_from_peer(self, peer):
-    if peer > 10 or peer < 1:
-      raise ValueError("Peer number must be between 1 and 10")
+    if peer > 10 or peer < 0:
+      raise ValueError("Peer number must be between 0 and 10")
     return self.peer_addresses.get(peer, None)  # Return None if peer is not set
 
   # send a message to one of the radio's peers
   def send_message(self, peer, message):
     if peer > 11 or peer < 0:  # peer 11 = broadcast
-      raise ValueError("Peer number must be between 1 and 10")
+      raise ValueError("Peer number must be between 0 and 11")
 
     # Smart truncation that handles UTF-8 multi-byte characters
     encoded_message = message.encode('utf-8')
