@@ -1,20 +1,23 @@
 PIPER_RADIO_I2C_ADDR = 0x54
 REG_RADIO_SELF_ADDR = 0
+
 REG_RADIO_MSG_LEN = 33
 REG_RADIO_MSG_IN = 34
 REG_RADIO_MSG_SEND = 36
+REG_RADIO_CH_GRAPH = 37
+REG_RADIO_LED_COLOR = 62
 
 RADIO_COLOR_SENSOR = 0
 RADIO_TEMP_SENSOR = 1
 RADIO_MOTION_SENSOR = 2
-RADIO_HEART_SENSOR = 3
+RADIO_HEART_SENSOR = 3   # not yet implemented
 RADIO_MOTOR_MODULE = 4
 
-RADIO_MODULES = [  # Module register, data length
-  [40, 8],
-  [45, 2],
-  [47, 12],
-  [54, 4],
+RADIO_MODULES = [  # register and nuber of bytes
+  [40, 8],         # color sensor
+  [45, 2],         # temp sensor
+  [47, 12],        # motion sensor
+  [54, 4],         # heart sensor - not yet implemented
 ]
 
 RADIO_GPIO_INPUT = 0
@@ -229,7 +232,14 @@ class piper_radio_module:
     with self.radio:
       self.radio.write(bytes([reg_addr, peer, value & 0xFF, 0]))
 
-
+  # set the color of the RGB LED
+  def set_led_color(self, peer, color):
+    _r, _g, _b = color
+    _msb = ((((_r * 31) // 255 << 3)) | ((((_g * 63) // 255) & 0xF8) >> 3)) & 0xFF
+    _lsb = ((((_g * 63) // 255) << 5) | ((_b * 31) // 255)) & 0xFF
+    with self.radio:
+      self.radio.write(bytes([REG_RADIO_LED_COLOR, peer, _lsb, _msb]))
+      
   # get the address of the radio module
   def get_address(self):
     bytes_read = bytearray(6)
@@ -319,6 +329,32 @@ class piper_radio_module:
 
     return [message, peer, message_addr]
 
+  # get the channel analysis results from the radio module
+  def channel_analysis(self):
+    bytes_read = bytearray(18)
+    with self.radio:
+      self.radio.write(bytes([REG_RADIO_CH_GRAPH]))
+      self.radio.readinto(bytes_read)
+    _ch_vals = list(bytes_read)
+    if sum(_ch_vals) == 0:
+      return "Place a jumper between pin 15 and GND on your Radio Module, then press it's RESET button.\\nWait 5 seconds, then re-run your code."
+    else:
+      _ch_out_str = ""
+      for __k in [2, 1, 0]:
+        for __i in range(1, 14):
+          if _ch_vals[__i] > (__k*2 + 1) * 42:
+            _ch_out_str = _ch_out_str + " " + chr(219) + " "  # full block
+          elif _ch_vals[__i] > (__k*2) * 42:
+            _ch_out_str = _ch_out_str + " " + chr(220) + " "  # half block
+          else:
+            _ch_out_str = _ch_out_str + "   "
+        if __k != 0:
+          _ch_out_str = _ch_out_str + "\\n"
+      _ch_out_str = _ch_out_str + "\\n---------------------------------------"
+      _ch_out_str = _ch_out_str + "\\n 1  2  3  4  5  6  7  8  9  10 11 12 13\\n\\n"
+      _ch_out_str = _ch_out_str + "Best channel: " + str(_ch_vals[16]) + "    Current channel: " + str(_ch_vals[17]) + "\\nReset module to re-scan."
+      return _ch_out_str
+      
   # Clear the sensor cache (useful if you want to force fresh readings)
   def clear_cache(self):
     self.sensor_cache.clear()
